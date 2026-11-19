@@ -1,0 +1,9 @@
+{
+  "id": "agenda",
+  "name": "Agenda",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "News and topics to raise with people and meetings, one note per item.",
+  "author": "arnaudmm",
+  "isDesktopOnly": false
+}
