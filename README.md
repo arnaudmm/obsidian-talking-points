@@ -49,6 +49,15 @@ The layout:
 - `src/actions.ts` holds the writes, behind a small `Store` interface, and is tested with an in-memory fake.
 - The rest of `src/` is the Obsidian side: type-checked here, and checked by hand in Obsidian.
 
+To try changes in a local vault, build and copy the plugin in one step. `OBSIDIAN_VAULT` is the path to your vault (the folder that contains `.obsidian`); put the `export` in your shell profile to set it once:
+
+```sh
+export OBSIDIAN_VAULT="$HOME/Documents/MyVault"
+npm run deploy-locally
+```
+
+It copies `manifest.json`, `main.js` and `styles.css` into `$OBSIDIAN_VAULT/.obsidian/plugins/talking-points/`, creating the folder if needed, and leaves `data.json` (the settings) alone. Then turn the plugin off and on in Obsidian, or use the Hot Reload plugin.
+
 ## Installing
 
 Build, then copy only the three files Obsidian loads:
