@@ -70,7 +70,7 @@ export class ObsidianStore implements Store {
     const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!(file instanceof TFile)) return null;
     const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    return fm === undefined ? null : structuredClone(fm as Frontmatter);
+    return fm === undefined ? null : structuredClone(fm);
   }
 
   async notesContaining(text: string): Promise<string[]> {

@@ -40,7 +40,6 @@ export default class TalkingPointsPlugin extends Plugin {
     });
 
     this.app.workspace.onLayoutReady(() => void this.index.build());
-    console.log("talking-points loaded");
   }
 
   async loadSettings(): Promise<void> {

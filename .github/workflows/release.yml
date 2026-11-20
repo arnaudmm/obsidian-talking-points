@@ -10,15 +10,17 @@ on:
       - "[0-9]+.[0-9]+.[0-9]+-*"
 
 permissions:
-  contents: write
+  contents: write      # create the release
+  id-token: write      # sign the build provenance attestation
+  attestations: write  # store it
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -37,6 +39,14 @@ jobs:
       - run: npm ci
 
       - run: npm run verify
+
+      # Lets anyone check that main.js and styles.css were built here, from
+      # this commit: gh attestation verify main.js --repo <owner>/<repo>
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            main.js
+            styles.css
 
       - name: Create the release
         env:

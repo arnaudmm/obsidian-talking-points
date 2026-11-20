@@ -15,7 +15,7 @@ import {
   type ItemRecord,
 } from "./core/query.ts";
 import type TalkingPointsPlugin from "./main.ts";
-import { OutcomeModal } from "./modals.ts";
+import { PromptModal } from "./modals.ts";
 
 const NOT_IN_SETTINGS = "(not in settings)";
 
@@ -165,7 +165,7 @@ export class AgendaBlock extends MarkdownRenderChild {
 
   /** Ask for the outcome and tick the item off for one audience; `restore` resets the control on cancel or error. */
   private async tick(item: ItemRecord, audience: string, restore: () => void): Promise<void> {
-    const outcome = await OutcomeModal.ask(this.plugin.app, `${item.title} → ${audience}`);
+    const outcome = await PromptModal.ask(this.plugin.app, `${item.title} → ${audience}`);
     if (outcome === null) {
       restore();
       return;

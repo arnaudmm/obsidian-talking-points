@@ -1,5 +1,5 @@
 // The capture / edit-audiences window, the outcome prompt and a confirmation.
-import { Modal, Notice, type App } from "obsidian";
+import { Modal, Notice, Platform, type App } from "obsidian";
 
 export interface ItemValues {
   title: string;
@@ -54,7 +54,7 @@ export class ItemModal extends Modal {
 
     const footer = contentEl.createDiv({ cls: "agenda-footer" });
     this.status = footer.createSpan({ cls: "agenda-status" });
-    const mod = navigatorIsMac() ? "⌘" : "Ctrl";
+    const mod = Platform.isMacOS ? "⌘" : "Ctrl";
     if (opts.mode === "create") {
       const next = footer.createEl("button", { text: "Save & next" });
       next.title = `${mod}+Shift+Enter`;
@@ -121,23 +121,25 @@ export class ItemModal extends Modal {
   }
 }
 
-function navigatorIsMac(): boolean {
-  return typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
-}
+const OUTCOME_PLACEHOLDER = "Outcome (optional) — Enter to save, Esc to cancel";
 
-/** One-line outcome prompt. Resolves to the text (maybe ""), or null when cancelled. */
-export class OutcomeModal extends Modal {
+/** One-line text prompt. Resolves to the text (maybe ""), or null when cancelled. */
+export class PromptModal extends Modal {
   private readonly heading: string;
+  private readonly placeholder: string;
+  private readonly initial: string;
   private resolve: (value: string | null) => void = () => {};
   private done = false;
 
-  constructor(app: App, heading: string) {
+  constructor(app: App, heading: string, placeholder: string, initial: string) {
     super(app);
     this.heading = heading;
+    this.placeholder = placeholder;
+    this.initial = initial;
   }
 
-  static ask(app: App, heading: string): Promise<string | null> {
-    const modal = new OutcomeModal(app, heading);
+  static ask(app: App, heading: string, placeholder = OUTCOME_PLACEHOLDER, initial = ""): Promise<string | null> {
+    const modal = new PromptModal(app, heading, placeholder, initial);
     const answer = new Promise<string | null>((resolve) => (modal.resolve = resolve));
     modal.open();
     return answer;
@@ -149,8 +151,9 @@ export class OutcomeModal extends Modal {
     const input = this.contentEl.createEl("input", {
       type: "text",
       cls: "agenda-outcome",
-      attr: { placeholder: "Outcome (optional) — Enter to save, Esc to cancel" },
+      attr: { placeholder: this.placeholder },
     });
+    input.value = this.initial;
     input.addEventListener("keydown", (ev) => {
       if (ev.key !== "Enter" || ev.isComposing) return;
       ev.preventDefault();

@@ -7,9 +7,11 @@ Talking Points is an Obsidian plugin to manage agenda items to discuss during me
 - An `agenda` block in a person or meeting note lists what is still pending for that audience.
 - Ticking an item asks for an optional one-line outcome, which is kept in the item's `## Log`. Each audience is ticked off on its own.
 
+It requires Obsidian 1.13 or later.
+
 ## Use
 
-1. In Settings → Talking Points, add your audiences.
+1. In Settings → Talking Points, add your audiences with the **+** button. Drag them to reorder, use the pencil to rename, or delete them.
 2. Run **Talking Points: New agenda item** (bind it to a hotkey). Type the title, tick the audiences, and press ⌘Enter to save, or ⌘⇧Enter to save and enter the next one.
 3. In each person or meeting note, add a block once:
    ````
