@@ -29,7 +29,16 @@ It requires Obsidian 1.13 or later.
    ````
    `layout: items` is optional: it shows a table of items × audiences, and without it the items are grouped by audience. In the table, `●` is still to tell (click it to tick that audience) and `✓` is already told. Every row shows the item's age.
 
-**Talking Points: Edit audiences of this agenda item** changes an item's audiences from its note. Renaming an audience in the settings updates the item notes, their logs and the blocks.
+Renaming an audience in the settings updates the item notes, their logs and the blocks.
+
+## Commands
+
+Run them from the command palette (⌘P on macOS, Ctrl+P elsewhere). They have no default hotkeys: bind them in Settings → Hotkeys.
+
+| Command | What it does |
+|---|---|
+| **Talking Points: New agenda item** | Opens the capture window: a title, optional details, and one checkbox per audience. **Save** (⌘Enter) creates the item note in the item folder and closes the window. **Save & next** (⌘⇧Enter) creates it and clears the window for the next item. At least one audience must be ticked. If no audiences are set up yet, it asks you to add some in Settings → Talking Points. |
+| **Talking Points: Edit audiences of this agenda item** | Available only when the open note is an agenda item (`type: agenda`). Shows a checkbox per audience, ticked for those still pending. Ticking one adds it to the item's `audiences` and `pending`. Unticking one removes it from `pending` only, so `audiences` keeps the record. Audiences that are on the item but no longer in the settings are listed as "(not in settings)". |
 
 ## Development
 
@@ -66,6 +75,7 @@ Build, then copy only the three files Obsidian loads:
 npm run build
 mkdir -p "<vault>/.obsidian/plugins/talking-points"
 cp manifest.json main.js styles.css "<vault>/.obsidian/plugins/talking-points/"
+```
 
 ## Releasing
 
