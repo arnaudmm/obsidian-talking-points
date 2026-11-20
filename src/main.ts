@@ -8,7 +8,7 @@ import { ItemModal } from "./modals.ts";
 import { AgendaSettingTab, DEFAULT_SETTINGS, type AgendaSettings } from "./settings.ts";
 import { ObsidianStore } from "./store.ts";
 
-export default class AgendaPlugin extends Plugin {
+export default class TalkingPointsPlugin extends Plugin {
   settings: AgendaSettings = { ...DEFAULT_SETTINGS };
   /** Emits "settings-changed" after every settings save. */
   events = new Events();
@@ -22,10 +22,10 @@ export default class AgendaPlugin extends Plugin {
     this.index.register(this);
     this.addSettingTab(new AgendaSettingTab(this.app, this));
 
-    this.addCommand({ id: "agenda-new-item", name: "New item", callback: () => this.newItem() });
+    this.addCommand({ id: "agenda-new-item", name: "New agenda item", callback: () => this.newItem() });
     this.addCommand({
       id: "agenda-edit-audiences",
-      name: "Edit audiences of this item",
+      name: "Edit audiences of this agenda item",
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         const fm = file && this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -40,7 +40,7 @@ export default class AgendaPlugin extends Plugin {
     });
 
     this.app.workspace.onLayoutReady(() => void this.index.build());
-    console.log("agenda loaded");
+    console.log("talking-points loaded");
   }
 
   async loadSettings(): Promise<void> {
@@ -62,7 +62,7 @@ export default class AgendaPlugin extends Plugin {
 
   private newItem(): void {
     if (this.settings.audiences.length === 0) {
-      new Notice("Add audiences in Settings → Agenda first.");
+      new Notice("Add audiences in Settings → Talking Points first.");
       return;
     }
     new ItemModal(this.app, {

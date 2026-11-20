@@ -4,7 +4,7 @@ import { Notice, PluginSettingTab, Setting, type App } from "obsidian";
 import { DEFAULT_FOLDER } from "./actions.ts";
 import { validateAudienceName } from "./core/block.ts";
 import { pendingCount } from "./core/query.ts";
-import type AgendaPlugin from "./main.ts";
+import type TalkingPointsPlugin from "./main.ts";
 import { ConfirmModal } from "./modals.ts";
 
 export interface AgendaSettings {
@@ -15,11 +15,11 @@ export interface AgendaSettings {
 export const DEFAULT_SETTINGS: AgendaSettings = { audiences: [], folder: DEFAULT_FOLDER };
 
 export class AgendaSettingTab extends PluginSettingTab {
-  private readonly plugin: AgendaPlugin;
+  private readonly plugin: TalkingPointsPlugin;
   /** True while a rename, move or removal runs: the rows are stale until redrawn. */
   private busy = false;
 
-  constructor(app: App, plugin: AgendaPlugin) {
+  constructor(app: App, plugin: TalkingPointsPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }

@@ -1,5 +1,5 @@
 {
-  "name": "obsidian-plugin-agenda",
+  "name": "obsidian-talking-points",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,5 +17,6 @@
     "moment": "2.31.0",
     "obsidian": "1.14.4",
     "typescript": "7.0.2"
-  }
+  },
+  "license": "MIT"
 }

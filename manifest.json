@@ -1,9 +1,9 @@
 {
-  "id": "agenda",
-  "name": "Agenda",
+  "id": "talking-points",
+  "name": "Talking Points",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "News and topics to raise with people and meetings, one note per item.",
+  "description": "Manage agenda items: news and topics to raise with people and meetings, one note per item, ticked off one audience at a time.",
   "author": "arnaudmm",
   "isDesktopOnly": false
 }

@@ -14,18 +14,18 @@ import {
   type AudienceColumn,
   type ItemRecord,
 } from "./core/query.ts";
-import type AgendaPlugin from "./main.ts";
+import type TalkingPointsPlugin from "./main.ts";
 import { OutcomeModal } from "./modals.ts";
 
 const NOT_IN_SETTINGS = "(not in settings)";
 
 export class AgendaBlock extends MarkdownRenderChild {
-  private readonly plugin: AgendaPlugin;
+  private readonly plugin: TalkingPointsPlugin;
   private readonly source: string;
   private readonly sourcePath: string;
   private showDone = false;
 
-  constructor(containerEl: HTMLElement, plugin: AgendaPlugin, source: string, sourcePath: string) {
+  constructor(containerEl: HTMLElement, plugin: TalkingPointsPlugin, source: string, sourcePath: string) {
     super(containerEl);
     this.plugin = plugin;
     this.source = source;
@@ -49,7 +49,7 @@ export class AgendaBlock extends MarkdownRenderChild {
       return;
     }
     if (!spec.all && !this.plugin.settings.audiences.includes(spec.audience)) {
-      el.createDiv({ cls: "agenda-error", text: `Unknown audience "${spec.audience}". Add it in Settings → Agenda.` });
+      el.createDiv({ cls: "agenda-error", text: `Unknown audience "${spec.audience}". Add it in Settings → Talking Points.` });
       return;
     }
     if (!this.plugin.index.ready) {
