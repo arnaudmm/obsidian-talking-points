@@ -1,0 +1,49 @@
+# Pushing a version tag (0.2.0, or 0.2.0-beta.1 for a pre-release) builds the
+# plugin, checks it, and creates the GitHub release that Obsidian and BRAT
+# install from. Create the tag with `npm version <patch|minor|major>`.
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check that the tag matches the manifest
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          manifest=$(node -p 'require("./manifest.json").version')
+          package=$(node -p 'require("./package.json").version')
+          mapped=$(node -p 'require("./versions.json")[process.argv[1]] ?? ""' "$tag")
+          if [ "$tag" != "$manifest" ] || [ "$tag" != "$package" ] || [ -z "$mapped" ]; then
+            echo "::error::Tag $tag must equal manifest.json ($manifest) and package.json ($package), and be listed in versions.json. Use npm version to bump."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm run verify
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          flags=()
+          case "$tag" in *-*) flags+=(--prerelease) ;; esac
+          gh release create "$tag" main.js manifest.json styles.css \
+            --title "$tag" --generate-notes --verify-tag "${flags[@]}"
