@@ -81,10 +81,15 @@ cp manifest.json main.js styles.css "<vault>/.obsidian/plugins/talking-points/"
 
 Releases are GitHub releases whose tag is the bare version (`0.2.0`, not `v0.2.0`), with `main.js`, `manifest.json` and `styles.css` attached. That is what Obsidian and BRAT install from.
 
+Merge the pull request first, then release from `main`:
+
 ```sh
+git checkout main && git pull
 npm version patch   # or minor / major; 1.0.0-beta.1 style versions become pre-releases
 git push --follow-tags
 ```
+
+`npm version` refuses to run on any other branch (`release-check.mjs`), so a release tag never points at a branch commit.
 
 `npm version` updates the version in `package.json` and `manifest.json` and adds it to `versions.json`, with the `minAppVersion` it needs. It then commits the change and creates the tag. Pushing the tag runs `.github/workflows/release.yml`, which checks that the tag matches the manifest, runs `npm run verify`, and creates the release. To require a newer Obsidian, change `minAppVersion` in `manifest.json` before bumping.
 
