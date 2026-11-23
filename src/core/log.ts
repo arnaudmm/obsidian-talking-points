@@ -1,5 +1,7 @@
 // The "## Log" section of an item note: one line per audience ticked off,
-// "- YYYY-MM-DD · audience" plus " · outcome" when one was given. Pure.
+// "- YYYY-MM-DD · [[audience]]" plus " · outcome" when one was given. The
+// audience is a link, so renaming its note updates the Log. Pure.
+import { audienceLink, audienceName } from "./item.ts";
 
 export interface LogEntry {
   date: string;
@@ -14,7 +16,7 @@ const ENTRY = /^- (\d{4}-\d{2}-\d{2}) · (.+)$/;
 
 export function formatLogLine(e: LogEntry): string {
   const outcome = e.outcome.replace(/\s*[\r\n]+\s*/g, " ").trim();
-  return `- ${e.date}${SEP}${e.audience}${outcome === "" ? "" : `${SEP}${outcome}`}`;
+  return `- ${e.date}${SEP}${audienceLink(e.audience)}${outcome === "" ? "" : `${SEP}${outcome}`}`;
 }
 
 /** The index of the "## Log" heading and the end (exclusive) of its section, or null. */
@@ -60,8 +62,10 @@ export function parseLog(content: string): LogEntry[] {
     const m = ENTRY.exec(lines[i].trimEnd());
     if (m === null) continue;
     const rest = m[2];
-    const cut = rest.indexOf(SEP);
-    const audience = (cut === -1 ? rest : rest.slice(0, cut)).trim();
+    // A link may hold the separator itself, so the audience ends at "]]".
+    const close = rest.startsWith("[[") ? rest.indexOf("]]") : -1;
+    const cut = rest.indexOf(SEP, close === -1 ? 0 : close + 2);
+    const audience = audienceName(cut === -1 ? rest : rest.slice(0, cut));
     if (audience === "") continue;
     entries.push({ date: m[1], audience, outcome: cut === -1 ? "" : rest.slice(cut + SEP.length).trim() });
   }
@@ -77,24 +81,6 @@ export function addDays(iso: string, n: number): string {
 export function localDate(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/** Rename the audience field of the Log entries; outcomes and other lines are kept. */
-export function renameInLog(content: string, from: string, to: string): string {
-  const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  const lines = content.split(eol);
-  const section = logSection(lines);
-  if (section === null) return content;
-  for (let i = section.heading + 1; i < section.end; i++) {
-    const m = ENTRY.exec(lines[i]);
-    if (m === null) continue;
-    const rest = m[2];
-    const cut = rest.indexOf(SEP);
-    const audience = cut === -1 ? rest : rest.slice(0, cut);
-    if (audience.trim() !== from) continue;
-    lines[i] = `- ${m[1]}${SEP}${to}${cut === -1 ? "" : rest.slice(cut)}`;
-  }
-  return lines.join(eol);
 }
 
 function parseIsoDate(iso: string): number | null {

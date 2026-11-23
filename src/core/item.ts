@@ -14,16 +14,39 @@ export function isItem(fm: unknown): boolean {
   return typeof fm === "object" && fm !== null && (fm as Frontmatter).type === "agenda";
 }
 
-/** Read a list property the way a person may have typed it: a list, a single string, or nothing. */
+/**
+ * The audience's name from a link to its note ("[[Marc]]", "[[People/Marc|Marc D.]]")
+ * or a plain name. Unquoted [[Marc]] is YAML for a nested list, [["Marc"]].
+ */
+export function audienceName(v: unknown): string {
+  let raw = v;
+  while (Array.isArray(raw)) raw = raw[0];
+  if (typeof raw !== "string") return "";
+  const s = raw.trim();
+  const link = /^\[\[([^\]]*)\]\]$/.exec(s);
+  if (link === null) return s;
+  const target = link[1].split("|")[0];
+  return (target.split("/").pop() ?? "").replace(/\.md$/i, "").trim();
+}
+
+export function audienceLink(name: string): string {
+  return `[[${name}]]`;
+}
+
+/** Read a list of audiences the way a person may have typed it: a list, a single string, or nothing. Names, not links. */
 export function readList(v: unknown): string[] {
   const raw = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
   const out: string[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "string") continue;
-    const name = entry.trim();
+    const name = audienceName(entry);
     if (name !== "" && !out.includes(name)) out.push(name);
   }
   return out;
+}
+
+/** The property value for a list of names: links, so renaming a note updates them. */
+function writeList(names: string[]): string[] {
+  return names.map(audienceLink);
 }
 
 export function newItemProps(audiences: string[], created: string): ItemProps {
@@ -32,7 +55,7 @@ export function newItemProps(audiences: string[], created: string): ItemProps {
 }
 
 function yamlList(names: string[]): string {
-  return `[${names.map((n) => JSON.stringify(n)).join(", ")}]`;
+  return `[${writeList(names).map((n) => JSON.stringify(n)).join(", ")}]`;
 }
 
 export function renderItemNote(props: ItemProps, details: string): string {
@@ -53,7 +76,7 @@ export function markShared(fm: Frontmatter, audience: string): boolean {
   const i = pending.indexOf(audience);
   if (i === -1) return false;
   pending.splice(i, 1);
-  fm.pending = pending;
+  fm.pending = writeList(pending);
   return true;
 }
 
@@ -73,25 +96,8 @@ export function setPending(fm: Frontmatter, selected: string[], initial?: string
   }
   const audiences = readList(fm.audiences);
   for (const name of pending) if (!audiences.includes(name)) audiences.push(name);
-  fm.audiences = audiences;
-  fm.pending = pending;
-}
-
-/** Rename one entry of the settings list; refuses when `from` is gone (a rename already ran). */
-export function renameInList(list: string[], from: string, to: string): string[] {
-  if (!list.includes(from)) throw new Error(`"${from}" is no longer in the list.`);
-  return list.map((n) => (n === from ? to : n));
-}
-
-export function renameInProps(fm: Frontmatter, from: string, to: string): boolean {
-  let changed = false;
-  for (const key of ["audiences", "pending"] as const) {
-    const list = readList(fm[key]);
-    if (!list.includes(from)) continue;
-    fm[key] = readList(list.map((n) => (n === from ? to : n)));
-    changed = true;
-  }
-  return changed;
+  fm.audiences = writeList(audiences);
+  fm.pending = writeList(pending);
 }
 
 export function sanitizeTitle(title: string): string {

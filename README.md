@@ -3,7 +3,7 @@
 Talking Points is an Obsidian plugin to manage agenda items to discuss during meetings.
 
 - Each item is a normal note with properties (`type: agenda`, `audiences`, `pending`), so search and Bases can see it.
-- You pick audiences (people, daily meeting, retrospective..) from a fixed list in the settings; you never type them.
+- Audiences are your own notes: any note with `type: person` or `type: meeting` is one, named after the note. Nothing is kept in the settings, and the same person notes work with other plugins that read `type: person`.
 - An `agenda` block in a person or meeting note lists what is still pending for that audience.
 - Ticking an item asks for an optional one-line outcome, which is kept in the item's `## Log`. Each audience is ticked off on its own.
 
@@ -11,14 +11,14 @@ It requires Obsidian 1.13 or later.
 
 ## Use
 
-1. In Settings → Talking Points, add your audiences with the **+** button. Drag them to reorder, use the pencil to rename, or delete them.
+1. Add `type: person` to the properties of each person's note, and `type: meeting` to each meeting's note (a daily, a retrospective…). Add `active: false` to hide one from the pickers without deleting it.
 2. Run **Talking Points: New agenda item** (bind it to a hotkey). Type the title, tick the audiences, and press ⌘Enter to save, or ⌘⇧Enter to save and enter the next one.
-3. In each person or meeting note, add a block once:
+3. In each person or meeting note, add an empty block once. It lists what is pending for that note:
    ````
    ```agenda
-   audience: daily
    ```
    ````
+   In any other note, name the audience: `audience: Daily` or `audience: [[Daily]]`.
 4. In the meeting, tick what you've covered. **Show done** lists the last 30 days with their outcomes.
 5. For an overview of everything pending, put this block anywhere (a home or weekly review note):
    ````
@@ -29,7 +29,7 @@ It requires Obsidian 1.13 or later.
    ````
    `layout: items` is optional: it shows a table of items × audiences, and without it the items are grouped by audience. In the table, `●` is still to tell (click it to tick that audience) and `✓` is already told. Every row shows the item's age.
 
-Renaming an audience in the settings updates the item notes, their logs and the blocks.
+Items refer to their audiences with links (`audiences: ["[[Marc]]"]`, and `- 2026-11-20 · [[Marc]] · outcome` in the `## Log`), so renaming a person or meeting note updates them, as long as Settings → Files and links → Automatically update internal links is on. An empty block follows its note's new name; a block with an `audience:` line keeps the name you typed.
 
 ## Commands
 
@@ -37,8 +37,8 @@ Run them from the command palette (⌘P on macOS, Ctrl+P elsewhere). They have n
 
 | Command | What it does |
 |---|---|
-| **Talking Points: New agenda item** | Opens the capture window: a title, optional details, and one checkbox per audience. **Save** (⌘Enter) creates the item note in the item folder and closes the window. **Save & next** (⌘⇧Enter) creates it and clears the window for the next item. At least one audience must be ticked. If no audiences are set up yet, it asks you to add some in Settings → Talking Points. |
-| **Talking Points: Edit audiences of this agenda item** | Available only when the open note is an agenda item (`type: agenda`). Shows a checkbox per audience, ticked for those still pending. Ticking one adds it to the item's `audiences` and `pending`. Unticking one removes it from `pending` only, so `audiences` keeps the record. Audiences that are on the item but no longer in the settings are listed as "(not in settings)". |
+| **Talking Points: New agenda item** | Opens the capture window: a title, optional details, and one checkbox per audience. **Save** (⌘Enter) creates the item note in the item folder and closes the window. **Save & next** (⌘⇧Enter) creates it and clears the window for the next item. At least one audience must be ticked. If no note has `type: person` or `type: meeting` yet, it says so. |
+| **Talking Points: Edit audiences of this agenda item** | Available only when the open note is an agenda item (`type: agenda`). Shows a checkbox per audience, ticked for those still pending. Ticking one adds it to the item's `audiences` and `pending`. Unticking one removes it from `pending` only, so `audiences` keeps the record. Audiences that are on the item but have no note are listed as "(no note)", and those with `active: false` as "(inactive)". |
 
 ## Development
 

@@ -1,23 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBlockSource, renameInBlocks, validateAudienceName } from "../src/core/block.ts";
+import { parseBlockSource, resolveAudience } from "../src/core/block.ts";
 
 test("parseBlockSource reads the audience line", () => {
   assert.deepEqual(parseBlockSource("audience: daily"), { audience: "daily", all: false, layout: "audience" });
 });
 
-test("parseBlockSource accepts any key case, quotes and other lines", () => {
+test("parseBlockSource accepts any key case, quotes, links and other lines", () => {
   assert.deepEqual(parseBlockSource("Audience:  'bob' \n other: x"), { audience: "bob", all: false, layout: "audience" });
   assert.deepEqual(parseBlockSource('audience: "big team"'), { audience: "big team", all: false, layout: "audience" });
+  assert.deepEqual(parseBlockSource("audience: [[People/Marc|Marc]]"), { audience: "Marc", all: false, layout: "audience" });
 });
 
 test("parseBlockSource recognises the overview block in any case, with its layout", () => {
   assert.deepEqual(parseBlockSource("audience: All\nlayout: items"), { audience: "all", all: true, layout: "items" });
   assert.deepEqual(parseBlockSource("audience: ALL\n Layout:  Audience "), { audience: "all", all: true, layout: "audience" });
-});
-
-test("parseBlockSource ignores layout: items on a single-audience block", () => {
-  assert.deepEqual(parseBlockSource("audience: daily\nlayout: items"), { audience: "daily", all: false, layout: "audience" });
 });
 
 test("parseBlockSource ignores trailing # comments on both lines", () => {
@@ -34,59 +31,16 @@ test("parseBlockSource rejects an unknown layout", () => {
   assert.deepEqual(parseBlockSource("audience: all\nlayout: grid"), { error: 'Unknown layout "grid". Use "audience" or "items".' });
 });
 
-test("parseBlockSource reports a missing or empty audience line", () => {
-  const error = 'Missing "audience:" line, e.g. `audience: daily`.';
-  assert.deepEqual(parseBlockSource(""), { error });
-  assert.deepEqual(parseBlockSource("audience:   "), { error });
+test("parseBlockSource with no audience line, or an empty one, leaves the audience to the note", () => {
+  assert.deepEqual(parseBlockSource(""), { audience: null, all: false, layout: "audience" });
+  assert.deepEqual(parseBlockSource("audience:   "), { audience: null, all: false, layout: "audience" });
 });
 
-test("renameInBlocks rewrites matching blocks and nothing else", () => {
-  const note = [
-    "audience: bob",
-    "```agenda",
-    "audience: bob",
-    "```",
-    "text",
-    "~~~agenda",
-    "  Audience: bob",
-    "~~~",
-    "```agenda",
-    "audience: daily",
-    "```",
-    "```yaml",
-    "audience: bob",
-    "```",
-  ].join("\n");
-  const expected = note
-    .split("\n")
-    .map((l, i) => (i === 2 ? "audience: robert" : i === 6 ? "  Audience: robert" : l))
-    .join("\n");
-  assert.equal(renameInBlocks(note, "bob", "robert"), expected);
-});
-
-test("renameInBlocks only matches the whole audience name", () => {
-  const note = "```agenda\naudience: bobby\n```\n";
-  assert.equal(renameInBlocks(note, "bob", "robert"), note);
-});
-
-test("validateAudienceName rejects empty names and separators", () => {
-  assert.equal(validateAudienceName("", []), "Name can't be empty.");
-  assert.equal(validateAudienceName("   ", []), "Name can't be empty.");
-  assert.equal(validateAudienceName("a,b", []), 'Name can\'t contain "," or "·".');
-  assert.equal(validateAudienceName("a·b", []), 'Name can\'t contain "," or "·".');
-  assert.equal(validateAudienceName("a\nb", []), 'Name can\'t contain "," or "·".');
-});
-
-test("validateAudienceName reserves all for the overview block", () => {
-  assert.equal(validateAudienceName("ALL", []), '"all" is reserved for the overview block.');
-  assert.equal(validateAudienceName(" all ", ["daily"], "daily"), '"all" is reserved for the overview block.');
-});
-
-test("validateAudienceName rejects case-insensitive duplicates", () => {
-  assert.equal(validateAudienceName("Daily", ["daily"]), '"Daily" already exists.');
-});
-
-test("validateAudienceName allows a case-only rename", () => {
-  assert.equal(validateAudienceName("Bob", ["bob", "daily"], "bob"), null);
-  assert.equal(validateAudienceName("alice", ["bob"]), null);
+test("resolveAudience: the block's line, else the note the block is in", () => {
+  const spec = (src: string) => parseBlockSource(src) as Exclude<ReturnType<typeof parseBlockSource>, { error: string }>;
+  assert.equal(resolveAudience(spec("audience: Bob"), "Marc"), "Bob");
+  assert.equal(resolveAudience(spec(""), "Marc"), "Marc");
+  assert.deepEqual(resolveAudience(spec(""), null), {
+    error: 'Add "audience:" (e.g. `audience: Marc`), or put this block in a note with type: person or type: meeting.',
+  });
 });

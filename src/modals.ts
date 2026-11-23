@@ -1,4 +1,4 @@
-// The capture / edit-audiences window, the outcome prompt and a confirmation.
+// The capture / edit-audiences window and the outcome prompt.
 import { Modal, Notice, Platform, type App } from "obsidian";
 
 export interface ItemValues {
@@ -9,8 +9,10 @@ export interface ItemValues {
 
 export interface ItemModalOptions {
   mode: "create" | "edit";
-  /** Audiences from the settings, in order. */
+  /** Audiences to pick from (the active audience notes), sorted. */
   audiences: string[];
+  /** Every audience note's name, inactive ones included. */
+  known: string[];
   /** Boxes ticked when the window opens (edit: the item's pending list). */
   checked: string[];
   submit: (values: ItemValues) => Promise<void>;
@@ -40,7 +42,7 @@ export class ItemModal extends Modal {
       this.detailsInput = contentEl.createEl("textarea", { cls: "agenda-details", attr: { placeholder: "Details (optional)", rows: "3" } });
     }
 
-    // Audiences already on the item but no longer in the settings stay visible,
+    // Audiences already on the item but with no active note stay visible,
     // so saving the window never drops them silently.
     const names = [...opts.audiences, ...opts.checked.filter((n) => !opts.audiences.includes(n))];
     const list = contentEl.createDiv({ cls: "agenda-audiences" });
@@ -48,7 +50,7 @@ export class ItemModal extends Modal {
       const label = list.createEl("label", { cls: "agenda-audience" });
       const box = label.createEl("input", { type: "checkbox" });
       box.checked = opts.checked.includes(name);
-      label.appendText(opts.audiences.includes(name) ? name : `${name} (not in settings)`);
+      label.appendText(opts.audiences.includes(name) ? name : `${name} (${opts.known.includes(name) ? "inactive" : "no note"})`);
       this.boxes.set(name, box);
     }
 
@@ -171,46 +173,6 @@ export class PromptModal extends Modal {
 
   onClose(): void {
     this.finish(null);
-    this.contentEl.empty();
-  }
-}
-
-export class ConfirmModal extends Modal {
-  private readonly message: string;
-  private readonly confirmLabel: string;
-  private resolve: (value: boolean) => void = () => {};
-  private done = false;
-
-  constructor(app: App, message: string, confirmLabel: string) {
-    super(app);
-    this.message = message;
-    this.confirmLabel = confirmLabel;
-  }
-
-  static ask(app: App, message: string, confirmLabel = "Remove"): Promise<boolean> {
-    const modal = new ConfirmModal(app, message, confirmLabel);
-    const answer = new Promise<boolean>((resolve) => (modal.resolve = resolve));
-    modal.open();
-    return answer;
-  }
-
-  onOpen(): void {
-    this.modalEl.addClass("agenda-modal");
-    this.contentEl.createEl("p", { text: this.message });
-    const footer = this.contentEl.createDiv({ cls: "agenda-footer" });
-    footer.createEl("button", { text: "Cancel" }).onclick = () => this.finish(false);
-    footer.createEl("button", { text: this.confirmLabel, cls: "mod-warning" }).onclick = () => this.finish(true);
-  }
-
-  private finish(value: boolean): void {
-    if (this.done) return;
-    this.done = true;
-    this.resolve(value);
-    this.close();
-  }
-
-  onClose(): void {
-    this.finish(false);
     this.contentEl.empty();
   }
 }

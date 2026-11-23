@@ -1,7 +1,8 @@
-import { Events, Notice, Plugin } from "obsidian";
-import { createItem, editAudiences, renameAudience, shareItem, type RenameResult } from "./actions.ts";
+import { Notice, Plugin } from "obsidian";
+import { createItem, editAudiences, shareItem } from "./actions.ts";
 import { AgendaBlock } from "./block.ts";
-import { isItem, readList, renameInList } from "./core/item.ts";
+import { NO_AUDIENCES } from "./core/audiences.ts";
+import { isItem, readList } from "./core/item.ts";
 import { localDate } from "./core/log.ts";
 import { ItemIndex } from "./index.ts";
 import { ItemModal } from "./modals.ts";
@@ -10,8 +11,6 @@ import { ObsidianStore } from "./store.ts";
 
 export default class TalkingPointsPlugin extends Plugin {
   settings: AgendaSettings = { ...DEFAULT_SETTINGS };
-  /** Emits "settings-changed" after every settings save. */
-  events = new Events();
   index!: ItemIndex;
   store!: ObsidianStore;
 
@@ -44,15 +43,12 @@ export default class TalkingPointsPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     const data = ((await this.loadData()) ?? {}) as Partial<AgendaSettings>;
-    this.settings = {
-      audiences: readList(data.audiences),
-      folder: typeof data.folder === "string" ? data.folder : DEFAULT_SETTINGS.folder,
-    };
+    // Earlier versions also kept an audience list here; it is ignored and dropped on the next save.
+    this.settings = { folder: typeof data.folder === "string" ? data.folder : DEFAULT_SETTINGS.folder };
   }
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
-    this.events.trigger("settings-changed");
   }
 
   today(): string {
@@ -60,13 +56,15 @@ export default class TalkingPointsPlugin extends Plugin {
   }
 
   private newItem(): void {
-    if (this.settings.audiences.length === 0) {
-      new Notice("Add audiences in Settings → Talking Points first.");
+    const audiences = this.index.activeAudiences();
+    if (audiences.length === 0) {
+      new Notice(NO_AUDIENCES);
       return;
     }
     new ItemModal(this.app, {
       mode: "create",
-      audiences: this.settings.audiences,
+      audiences,
+      known: this.index.knownAudiences(),
       checked: [],
       submit: async (v) => {
         await createItem(this.store, this.settings.folder, v.title, v.details, v.selected, this.today());
@@ -77,7 +75,8 @@ export default class TalkingPointsPlugin extends Plugin {
   private editItem(path: string, pending: string[]): void {
     new ItemModal(this.app, {
       mode: "edit",
-      audiences: this.settings.audiences,
+      audiences: this.index.activeAudiences(),
+      known: this.index.knownAudiences(),
       checked: pending,
       submit: (v) => editAudiences(this.store, path, v.selected, pending),
     }).open();
@@ -85,15 +84,5 @@ export default class TalkingPointsPlugin extends Plugin {
 
   share(path: string, audience: string, outcome: string): Promise<boolean> {
     return shareItem(this.store, path, audience, outcome, this.today());
-  }
-
-  /**
-   * Rename in the settings first, so blocks rewritten to the new name find it.
-   * Throws when `from` is no longer in the settings (a rename already ran).
-   */
-  async renameAudience(from: string, to: string): Promise<RenameResult> {
-    this.settings.audiences = renameInList(this.settings.audiences, from, to);
-    await this.saveSettings();
-    return renameAudience(this.store, from, to);
   }
 }
