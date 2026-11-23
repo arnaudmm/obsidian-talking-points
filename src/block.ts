@@ -3,7 +3,7 @@
 // `audience: all`: everything pending, grouped by audience or as a table of
 // items × audiences (`layout: items`).
 import { MarkdownRenderChild, Notice } from "obsidian";
-import { parseBlockSource, type BlockSpec } from "./core/block.ts";
+import { parseBlockSource, resolveAudience } from "./core/block.ts";
 import {
   ageLabel,
   doneFor,
@@ -17,12 +17,12 @@ import {
 import type TalkingPointsPlugin from "./main.ts";
 import { PromptModal } from "./modals.ts";
 
-const NOT_IN_SETTINGS = "(not in settings)";
+const NO_NOTE = "(no note)";
 
 export class AgendaBlock extends MarkdownRenderChild {
   private readonly plugin: TalkingPointsPlugin;
   private readonly source: string;
-  private readonly sourcePath: string;
+  private sourcePath: string;
   private showDone = false;
 
   constructor(containerEl: HTMLElement, plugin: TalkingPointsPlugin, source: string, sourcePath: string) {
@@ -34,7 +34,12 @@ export class AgendaBlock extends MarkdownRenderChild {
 
   onload(): void {
     this.registerEvent(this.plugin.index.on("updated", () => this.render()));
-    this.registerEvent(this.plugin.events.on("settings-changed", () => this.render()));
+    // Follow the note this block is in, so a block with no audience line keeps its audience after a rename.
+    this.registerEvent(
+      this.plugin.app.vault.on("rename", (file, oldPath) => {
+        if (oldPath === this.sourcePath) this.sourcePath = file.path;
+      }),
+    );
     this.render();
   }
 
@@ -48,20 +53,26 @@ export class AgendaBlock extends MarkdownRenderChild {
       el.createDiv({ cls: "agenda-error", text: spec.error });
       return;
     }
-    if (!spec.all && !this.plugin.settings.audiences.includes(spec.audience)) {
-      el.createDiv({ cls: "agenda-error", text: `Unknown audience "${spec.audience}". Add it in Settings → Talking Points.` });
-      return;
-    }
-    if (!this.plugin.index.ready) {
+    const index = this.plugin.index;
+    if (!index.ready) {
       el.createDiv({ cls: "agenda-muted", text: "Loading…" });
       return;
     }
+    const audience = resolveAudience(spec, index.audienceAt(this.sourcePath)?.name ?? null);
+    if (typeof audience !== "string") {
+      el.createDiv({ cls: "agenda-error", text: audience.error });
+      return;
+    }
+    if (!spec.all && !index.knownAudiences().includes(audience)) {
+      el.createDiv({ cls: "agenda-error", text: `No note named "${audience}" has type: person or type: meeting.` });
+      return;
+    }
 
-    const records = this.plugin.index.records();
-    if (!spec.all) this.renderAudience(el, records, spec.audience);
+    const records = index.records();
+    if (!spec.all) this.renderAudience(el, records, audience);
     else if (spec.layout === "items") this.renderTable(el, records);
     else this.renderGroups(el, records);
-    this.renderDone(el, records, spec);
+    this.renderDone(el, records, spec.all ? null : audience);
   }
 
   private renderAudience(el: HTMLElement, records: ItemRecord[], audience: string): void {
@@ -73,7 +84,7 @@ export class AgendaBlock extends MarkdownRenderChild {
 
   private renderGroups(el: HTMLElement, records: ItemRecord[]): void {
     el.createDiv({ cls: "agenda-header", text: `All pending (${pendingItemCount(records)} items)` });
-    const groups = groupByAudience(records, this.plugin.settings.audiences);
+    const groups = groupByAudience(records, this.plugin.index.knownAudiences());
     if (groups.length === 0) el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });
     for (const { column, items } of groups) {
       el.createDiv({ cls: "agenda-group", text: `${columnName(column)} (${items.length})` });
@@ -83,7 +94,7 @@ export class AgendaBlock extends MarkdownRenderChild {
 
   private renderTable(el: HTMLElement, records: ItemRecord[]): void {
     el.createDiv({ cls: "agenda-header", text: `All pending (${pendingItemCount(records)} items)` });
-    const { columns, rows } = itemMatrix(records, this.plugin.settings.audiences);
+    const { columns, rows } = itemMatrix(records, this.plugin.index.knownAudiences());
     if (rows.length === 0) {
       el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });
       return;
@@ -93,7 +104,7 @@ export class AgendaBlock extends MarkdownRenderChild {
     head.createEl("th");
     for (const column of columns) {
       const th = head.createEl("th", { text: column.known ? column.audience : `${column.audience}*` });
-      if (!column.known) th.title = `${column.audience} ${NOT_IN_SETTINGS}`;
+      if (!column.known) th.title = `${column.audience} ${NO_NOTE}`;
     }
     head.createEl("th");
 
@@ -135,7 +146,8 @@ export class AgendaBlock extends MarkdownRenderChild {
     row.createSpan({ cls: "agenda-age", text: ageLabel(item.created, this.plugin.today()) });
   }
 
-  private renderDone(el: HTMLElement, records: ItemRecord[], spec: BlockSpec): void {
+  /** `audience` null: every audience (the overview block). */
+  private renderDone(el: HTMLElement, records: ItemRecord[], audience: string | null): void {
     const toggle = el.createEl("a", { cls: "agenda-toggle", text: this.showDone ? "Hide done" : "Show done (last 30 days)" });
     toggle.onclick = () => {
       this.showDone = !this.showDone;
@@ -143,11 +155,11 @@ export class AgendaBlock extends MarkdownRenderChild {
     };
     if (!this.showDone) return;
 
-    const rows = doneFor(records, spec.all ? null : spec.audience, this.plugin.today());
+    const rows = doneFor(records, audience, this.plugin.today());
     if (rows.length === 0) el.createDiv({ cls: "agenda-muted", text: "Nothing done in the last 30 days." });
     for (const { item, entry } of rows) {
       const row = el.createDiv({ cls: "agenda-done" });
-      row.appendText(spec.all ? `${entry.date} · ${entry.audience} · ` : `${entry.date} · `);
+      row.appendText(audience === null ? `${entry.date} · ${entry.audience} · ` : `${entry.date} · `);
       this.link(row, item.path, item.title);
       if (entry.outcome !== "") row.appendText(` · ${entry.outcome}`);
     }
@@ -180,5 +192,5 @@ export class AgendaBlock extends MarkdownRenderChild {
 }
 
 function columnName(column: AudienceColumn): string {
-  return column.known ? column.audience : `${column.audience} ${NOT_IN_SETTINGS}`;
+  return column.known ? column.audience : `${column.audience} ${NO_NOTE}`;
 }

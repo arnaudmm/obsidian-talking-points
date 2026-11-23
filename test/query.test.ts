@@ -6,7 +6,6 @@ import {
   groupByAudience,
   itemMatrix,
   overviewAudiences,
-  pendingCount,
   pendingFor,
   pendingItemCount,
   type ItemRecord,
@@ -50,12 +49,6 @@ test("doneFor keeps the last 30 days inclusive, newest first, for this audience 
   assert.equal(rows[0].item.path, "b.md");
 });
 
-test("pendingCount counts items pending for the audience", () => {
-  const items = [item("a.md", "2026-11-01", ["daily", "bob"]), item("b.md", "2026-11-02", ["bob"])];
-  assert.equal(pendingCount(items, "bob"), 2);
-  assert.equal(pendingCount(items, "dept"), 0);
-});
-
 function rec(path: string, audiences: string[], pending: string[], created = "2026-11-01"): ItemRecord {
   return { path, title: path, created, audiences, pending, log: [] };
 }
@@ -68,7 +61,7 @@ test("ageLabel says today, then days, and nothing for a bad date", () => {
   assert.equal(ageLabel("", "2026-11-19"), "");
 });
 
-test("overviewAudiences: known ones in settings order, then unknown ones alphabetically, only if pending", () => {
+test("overviewAudiences: known ones in the given order, then unknown ones alphabetically, only if pending", () => {
   const items = [rec("a.md", ["daily", "zed"], ["daily", "zed"]), rec("b.md", ["bob", "carol"], ["bob", "carol"])];
   assert.deepEqual(overviewAudiences(items, ["daily", "biweekly", "bob"]), [
     { audience: "daily", known: true },

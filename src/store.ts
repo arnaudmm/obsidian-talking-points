@@ -1,7 +1,7 @@
 // The Store port (see actions.ts) implemented on the Obsidian vault.
 import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import type { Store } from "./actions.ts";
-import { caseInsensitiveLookup, isItem, type Frontmatter } from "./core/item.ts";
+import { caseInsensitiveLookup, type Frontmatter } from "./core/item.ts";
 
 export class ObsidianStore implements Store {
   private readonly app: App;
@@ -57,27 +57,5 @@ export class ObsidianStore implements Store {
     const current = await this.app.vault.read(file);
     if (fn(current) === current) return;
     await this.app.vault.process(file, fn);
-  }
-
-  itemPaths(): string[] {
-    return this.app.vault
-      .getMarkdownFiles()
-      .filter((f) => isItem(this.app.metadataCache.getFileCache(f)?.frontmatter))
-      .map((f) => f.path);
-  }
-
-  frontmatter(path: string): Frontmatter | null {
-    const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
-    if (!(file instanceof TFile)) return null;
-    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    return fm === undefined ? null : structuredClone(fm);
-  }
-
-  async notesContaining(text: string): Promise<string[]> {
-    const paths: string[] = [];
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if ((await this.app.vault.cachedRead(file)).includes(text)) paths.push(file.path);
-    }
-    return paths;
   }
 }

@@ -1,21 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addDays, appendLogLine, daysBetween, formatLogLine, localDate, parseLog, renameInLog } from "../src/core/log.ts";
+import { addDays, appendLogLine, daysBetween, formatLogLine, localDate, parseLog } from "../src/core/log.ts";
 
 test("formatLogLine writes date, audience and outcome", () => {
   assert.equal(
     formatLogLine({ date: "2026-11-20", audience: "biweekly", outcome: "yes, January" }),
-    "- 2026-11-20 · biweekly · yes, January",
+    "- 2026-11-20 · [[biweekly]] · yes, January",
   );
 });
 
 test("formatLogLine without an outcome ends after the audience", () => {
-  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "" }), "- 2026-11-20 · daily");
-  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "  \n " }), "- 2026-11-20 · daily");
+  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "" }), "- 2026-11-20 · [[daily]]");
+  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "  \n " }), "- 2026-11-20 · [[daily]]");
 });
 
 test("formatLogLine collapses newlines in the outcome", () => {
-  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "a\nb " }), "- 2026-11-20 · daily · a b");
+  assert.equal(formatLogLine({ date: "2026-11-20", audience: "daily", outcome: "a\nb " }), "- 2026-11-20 · [[daily]] · a b");
 });
 
 test("appendLogLine adds after the last entry of the Log section", () => {
@@ -69,13 +69,6 @@ test("localDate formats the local calendar date, not the UTC one", () => {
   assert.equal(localDate(new Date(2026, 10, 19, 0, 1)), "2026-11-19");
 });
 
-test("renameInLog renames the audience of Log entries only", () => {
-  const note = "- 2026-11-01 · bob · outside\n\n## Log\n- 2026-11-20 · bob · yes · bob agreed\n- 2026-11-21 · bobby\n- 2026-11-22 · bob\n";
-  assert.equal(
-    renameInLog(note, "bob", "robert"),
-    "- 2026-11-01 · bob · outside\n\n## Log\n- 2026-11-20 · robert · yes · bob agreed\n- 2026-11-21 · bobby\n- 2026-11-22 · robert\n",
-  );
-});
 
 test("daysBetween counts calendar days between two valid dates", () => {
   assert.equal(daysBetween("2026-11-12", "2026-11-19"), 7);
@@ -84,4 +77,13 @@ test("daysBetween counts calendar days between two valid dates", () => {
 
 test("daysBetween returns null for anything that is not a real date", () => {
   for (const bad of ["2026-13-45", "2026-02-30", "soon", ""]) assert.equal(daysBetween(bad, "2026-11-19"), null);
+});
+
+test("parseLog reads the audience from a link, even one with a path, an alias or a separator", () => {
+  const note = "## Log\n- 2026-11-20 · [[Marc]] · yes · later\n- 2026-11-21 · [[Meetings/Daily|the daily]]\n- 2026-11-22 · [[a · b]] · ok\n";
+  assert.deepEqual(parseLog(note), [
+    { date: "2026-11-20", audience: "Marc", outcome: "yes · later" },
+    { date: "2026-11-21", audience: "Daily", outcome: "" },
+    { date: "2026-11-22", audience: "a · b", outcome: "ok" },
+  ]);
 });
