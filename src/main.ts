@@ -55,7 +55,8 @@ export default class TalkingPointsPlugin extends Plugin {
     return localDate(new Date());
   }
 
-  private newItem(): void {
+  /** `audience`: who to start with (a block's audience); otherwise the current note's audience, if any. */
+  newItem(audience?: string): void {
     const audiences = this.index.activeAudiences();
     if (audiences.length === 0) {
       new Notice(NO_AUDIENCES);
@@ -64,11 +65,12 @@ export default class TalkingPointsPlugin extends Plugin {
     // Run from a person's or a meeting's note, the item starts with that audience.
     const active = this.app.workspace.getActiveFile();
     const here = active === null ? null : this.index.audienceAt(active.path);
+    const start = audience !== undefined ? (audience === "" ? [] : [audience]) : here !== null && here.active ? [here.name] : [];
     new ItemModal(this.app, {
       mode: "create",
       audiences,
       known: this.index.knownAudiences(),
-      checked: here !== null && here.active ? [here.name] : [],
+      checked: start,
       submit: async (v) => {
         await createItem(this.store, this.settings.folder, v.title, v.details, v.selected, this.today());
       },

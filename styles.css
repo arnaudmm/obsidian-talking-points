@@ -5,8 +5,19 @@
 }
 
 .agenda-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
   font-weight: var(--font-semibold);
   margin-bottom: var(--size-4-1);
+}
+
+.agenda-new {
+  flex: none;
+  font-size: var(--font-ui-small);
+  padding: var(--size-2-1) var(--size-4-2);
+  height: auto;
 }
 
 .agenda-row {

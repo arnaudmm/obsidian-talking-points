@@ -18,7 +18,7 @@ It requires Obsidian 1.13 or later.
    ```agenda
    ```
    ````
-4. In the meeting, tick what you've covered. **Show done** lists the last 30 days with their outcomes.
+4. In the meeting, tick what you've covered. **Show done** lists the last 30 days with their outcomes. The **New** button in the header starts an item for that audience (for nobody in a `with: all` block).
 5. For an overview of everything pending, put this block anywhere (a home or weekly review note):
    ````
    ```agenda

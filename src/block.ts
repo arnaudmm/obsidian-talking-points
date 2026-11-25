@@ -68,21 +68,28 @@ export class AgendaBlock extends MarkdownRenderChild {
     }
 
     const records = index.records();
+    this.header(el, all ? ALL : audience, all ? pendingItemCount(records) : pendingFor(records, audience).length);
     if (!all) this.renderAudience(el, records, audience);
     else if (spec.layout === "items") this.renderTable(el, records);
     else this.renderGroups(el, records);
     this.renderDone(el, records, all ? null : audience);
   }
 
+  /** The header, with a New button that starts an item for this block's audience (nobody for the overview). */
+  private header(el: HTMLElement, scope: string, pending: number): void {
+    const header = el.createDiv({ cls: "agenda-header" });
+    header.createSpan({ text: headerText(scope, pending) });
+    const add = header.createEl("button", { cls: "agenda-new", text: "New", attr: { "aria-label": "New agenda item" } });
+    add.onclick = () => this.plugin.newItem(scope === ALL ? "" : scope);
+  }
+
   private renderAudience(el: HTMLElement, records: ItemRecord[], audience: string): void {
     const pending = pendingFor(records, audience);
-    el.createDiv({ cls: "agenda-header", text: headerText(audience, pending.length) });
     if (pending.length === 0) el.createDiv({ cls: "agenda-muted", text: `Nothing pending for ${audience}.` });
     for (const item of pending) this.row(el, item, audience);
   }
 
   private renderGroups(el: HTMLElement, records: ItemRecord[]): void {
-    el.createDiv({ cls: "agenda-header", text: headerText(ALL, pendingItemCount(records)) });
     const groups = groupByAudience(records, this.plugin.index.knownAudiences());
     if (groups.length === 0) el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });
     for (const { column, items } of groups) {
@@ -92,7 +99,6 @@ export class AgendaBlock extends MarkdownRenderChild {
   }
 
   private renderTable(el: HTMLElement, records: ItemRecord[]): void {
-    el.createDiv({ cls: "agenda-header", text: headerText(ALL, pendingItemCount(records)) });
     const { columns, rows } = itemMatrix(records, this.plugin.index.knownAudiences());
     if (rows.length === 0) {
       el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });
