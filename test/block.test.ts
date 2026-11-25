@@ -1,46 +1,41 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBlockSource, resolveAudience } from "../src/core/block.ts";
+import { headerText, parseBlockSource, resolveAudience } from "../src/core/block.ts";
 
-test("parseBlockSource reads the audience line", () => {
-  assert.deepEqual(parseBlockSource("audience: daily"), { audience: "daily", all: false, layout: "audience" });
+test("with names the audience, as Name, [[Name]] or all, in any case", () => {
+  assert.deepEqual(parseBlockSource("with: Daily"), { audience: "Daily", layout: "audience" });
+  assert.deepEqual(parseBlockSource("With: [[People/Marc|Marc D.]]"), { audience: "Marc", layout: "audience" });
+  assert.deepEqual(parseBlockSource("with: ALL\nlayout: Items"), { audience: "all", layout: "items" });
 });
 
-test("parseBlockSource accepts any key case, quotes, links and other lines", () => {
-  assert.deepEqual(parseBlockSource("Audience:  'bob' \n other: x"), { audience: "bob", all: false, layout: "audience" });
-  assert.deepEqual(parseBlockSource('audience: "big team"'), { audience: "big team", all: false, layout: "audience" });
-  assert.deepEqual(parseBlockSource("audience: [[People/Marc|Marc]]"), { audience: "Marc", all: false, layout: "audience" });
+test("audience: still works, so blocks written before keep working", () => {
+  assert.deepEqual(parseBlockSource("audience: daily"), { audience: "daily", layout: "audience" });
+  assert.deepEqual(parseBlockSource("audience: all\nlayout: items"), { audience: "all", layout: "items" });
 });
 
-test("parseBlockSource recognises the overview block in any case, with its layout", () => {
-  assert.deepEqual(parseBlockSource("audience: All\nlayout: items"), { audience: "all", all: true, layout: "items" });
-  assert.deepEqual(parseBlockSource("audience: ALL\n Layout:  Audience "), { audience: "all", all: true, layout: "audience" });
+test("options take quotes and # comments, the same way as Open Threads' threads block", () => {
+  assert.deepEqual(parseBlockSource("with: 'big team'   # the team\n# a comment line\nlayout: \"items\""), { audience: "big team", layout: "items" });
 });
 
-test("parseBlockSource ignores trailing # comments on both lines", () => {
-  assert.deepEqual(parseBlockSource("audience: all\nlayout: items      # optional: a table"), { audience: "all", all: true, layout: "items" });
-  assert.deepEqual(parseBlockSource("audience: daily # the team"), { audience: "daily", all: false, layout: "audience" });
+test("an empty block, or an empty with, leaves the audience to the note", () => {
+  assert.deepEqual(parseBlockSource(""), { audience: null, layout: "audience" });
+  assert.deepEqual(parseBlockSource("with:   "), { audience: null, layout: "audience" });
 });
 
-test("parseBlockSource ignores any layout on a single-audience block, and an empty layout", () => {
-  assert.deepEqual(parseBlockSource("audience: daily\nlayout: grid"), { audience: "daily", all: false, layout: "audience" });
-  assert.deepEqual(parseBlockSource("audience: all\nlayout:"), { audience: "all", all: true, layout: "audience" });
+test("unknown options, values and lines are errors that list what works", () => {
+  assert.deepEqual(parseBlockSource("with: all\nlayout: grid"), { error: 'Unknown layout "grid". Use audience or items.' });
+  assert.deepEqual(parseBlockSource("colour: red"), { error: 'Unknown option "colour". Use with or layout.' });
+  assert.deepEqual(parseBlockSource("just text"), { error: 'Expected "key: value", got "just text".' });
 });
 
-test("parseBlockSource rejects an unknown layout", () => {
-  assert.deepEqual(parseBlockSource("audience: all\nlayout: grid"), { error: 'Unknown layout "grid". Use "audience" or "items".' });
+test("the audience is the block's own, else the note it is in, else everyone", () => {
+  assert.equal(resolveAudience({ audience: "Bob", layout: "audience" }, "Marc"), "Bob");
+  assert.equal(resolveAudience({ audience: null, layout: "audience" }, "Marc"), "Marc");
+  assert.equal(resolveAudience({ audience: null, layout: "audience" }, null), "all");
+  assert.equal(resolveAudience({ audience: "all", layout: "items" }, "Marc"), "all");
 });
 
-test("parseBlockSource with no audience line, or an empty one, leaves the audience to the note", () => {
-  assert.deepEqual(parseBlockSource(""), { audience: null, all: false, layout: "audience" });
-  assert.deepEqual(parseBlockSource("audience:   "), { audience: null, all: false, layout: "audience" });
-});
-
-test("resolveAudience: the block's line, else the note the block is in", () => {
-  const spec = (src: string) => parseBlockSource(src) as Exclude<ReturnType<typeof parseBlockSource>, { error: string }>;
-  assert.equal(resolveAudience(spec("audience: Bob"), "Marc"), "Bob");
-  assert.equal(resolveAudience(spec(""), "Marc"), "Marc");
-  assert.deepEqual(resolveAudience(spec(""), null), {
-    error: 'Add "audience:" (e.g. `audience: Marc`), or put this block in a note with type: person or type: meeting.',
-  });
+test("the header names who the block is about, as in Open Threads", () => {
+  assert.equal(headerText("Marc", 3), "Marc · 3 pending");
+  assert.equal(headerText("all", 5), "Everyone · 5 pending");
 });

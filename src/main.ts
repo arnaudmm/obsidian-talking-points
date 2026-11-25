@@ -61,11 +61,14 @@ export default class TalkingPointsPlugin extends Plugin {
       new Notice(NO_AUDIENCES);
       return;
     }
+    // Run from a person's or a meeting's note, the item starts with that audience.
+    const active = this.app.workspace.getActiveFile();
+    const here = active === null ? null : this.index.audienceAt(active.path);
     new ItemModal(this.app, {
       mode: "create",
       audiences,
       known: this.index.knownAudiences(),
-      checked: [],
+      checked: here !== null && here.active ? [here.name] : [],
       submit: async (v) => {
         await createItem(this.store, this.settings.folder, v.title, v.details, v.selected, this.today());
       },

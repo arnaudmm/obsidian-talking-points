@@ -1,5 +1,6 @@
-// The capture / edit-audiences window and the outcome prompt.
-import { Modal, Notice, Platform, type App } from "obsidian";
+// The capture / edit-audiences window, the audience picker and the outcome prompt.
+import { FuzzySuggestModal, Modal, Notice, Platform, setIcon, type App } from "obsidian";
+import { NO_AUDIENCES } from "./core/audiences.ts";
 
 export interface ItemValues {
   title: string;
@@ -13,7 +14,7 @@ export interface ItemModalOptions {
   audiences: string[];
   /** Every audience note's name, inactive ones included. */
   known: string[];
-  /** Boxes ticked when the window opens (edit: the item's pending list). */
+  /** Audiences chosen when the window opens (create: the current note's; edit: the item's pending list). */
   checked: string[];
   submit: (values: ItemValues) => Promise<void>;
 }
@@ -22,7 +23,8 @@ export class ItemModal extends Modal {
   private readonly opts: ItemModalOptions;
   private titleInput: HTMLInputElement | null = null;
   private detailsInput: HTMLTextAreaElement | null = null;
-  private boxes = new Map<string, HTMLInputElement>();
+  private selected: string[] = [];
+  private chips: HTMLElement | null = null;
   private saved = 0;
   private saving = false;
   private status: HTMLElement | null = null;
@@ -42,17 +44,12 @@ export class ItemModal extends Modal {
       this.detailsInput = contentEl.createEl("textarea", { cls: "agenda-details", attr: { placeholder: "Details (optional)", rows: "3" } });
     }
 
-    // Audiences already on the item but with no active note stay visible,
-    // so saving the window never drops them silently.
-    const names = [...opts.audiences, ...opts.checked.filter((n) => !opts.audiences.includes(n))];
-    const list = contentEl.createDiv({ cls: "agenda-audiences" });
-    for (const name of names) {
-      const label = list.createEl("label", { cls: "agenda-audience" });
-      const box = label.createEl("input", { type: "checkbox" });
-      box.checked = opts.checked.includes(name);
-      label.appendText(opts.audiences.includes(name) ? name : `${name} (${opts.known.includes(name) ? "inactive" : "no note"})`);
-      this.boxes.set(name, box);
-    }
+    // The same "With" field as Open Threads, with several audiences: one chip each, + to add.
+    const row = contentEl.createDiv({ cls: "agenda-field" });
+    row.createSpan({ cls: "agenda-label", text: "With" });
+    this.chips = row.createDiv({ cls: "agenda-chips" });
+    this.selected = [...opts.checked];
+    this.renderChips();
 
     const footer = contentEl.createDiv({ cls: "agenda-footer" });
     this.status = footer.createSpan({ cls: "agenda-status" });
@@ -76,21 +73,54 @@ export class ItemModal extends Modal {
         return false;
       });
     }
-    (this.titleInput ?? [...this.boxes.values()][0])?.focus();
+    this.titleInput?.focus();
+  }
+
+  /** Chips for the chosen audiences, then the + button. An audience with no active note says why. */
+  private renderChips(): void {
+    const el = this.chips;
+    if (el === null) return;
+    el.empty();
+    const { audiences, known } = this.opts;
+    for (const name of this.selected) {
+      const chip = el.createSpan({ cls: "agenda-chip" });
+      chip.createSpan({ text: audiences.includes(name) ? name : `${name} (${known.includes(name) ? "inactive" : "no note"})` });
+      const remove = chip.createSpan({ cls: "agenda-chip-remove", attr: { "aria-label": `Remove ${name}`, role: "button" } });
+      setIcon(remove, "x");
+      remove.onclick = () => {
+        this.selected = this.selected.filter((n) => n !== name);
+        this.renderChips();
+      };
+    }
+    const add = el.createEl("button", { cls: "agenda-chip-add", attr: { "aria-label": "Add a person or meeting" } });
+    setIcon(add, "plus");
+    if (this.selected.length === 0) add.appendText(" Add a person or meeting");
+    add.onclick = async () => {
+      const choices = audiences.filter((n) => !this.selected.includes(n));
+      if (choices.length === 0) {
+        new Notice(audiences.length === 0 ? NO_AUDIENCES : "Every audience is already added.");
+        return;
+      }
+      const name = await pickAudience(this.app, choices);
+      if (name === undefined) return;
+      this.selected = [...this.selected, name];
+      this.renderChips();
+    };
   }
 
   private values(): ItemValues {
     return {
       title: this.titleInput?.value ?? "",
       details: this.detailsInput?.value ?? "",
-      selected: [...this.boxes].filter(([, box]) => box.checked).map(([name]) => name),
+      selected: [...this.selected],
     };
   }
 
   private setFields(v: ItemValues): void {
     if (this.titleInput) this.titleInput.value = v.title;
     if (this.detailsInput) this.detailsInput.value = v.details;
-    for (const [name, box] of this.boxes) box.checked = v.selected.includes(name);
+    this.selected = [...v.selected];
+    this.renderChips();
   }
 
   /** One save at a time (a double click or key repeat must not create the item twice). */
@@ -99,7 +129,8 @@ export class ItemModal extends Modal {
     this.saving = true;
     const values = this.values();
     // For "Save & next", clear at once so typing the next item isn't wiped by the save.
-    if (next) this.setFields({ title: "", details: "", selected: [] });
+    // The audiences go back to those the window opened with (the current note's).
+    if (next) this.setFields({ title: "", details: "", selected: [...this.opts.checked] });
     try {
       await this.opts.submit(values);
     } catch (e) {
@@ -121,6 +152,42 @@ export class ItemModal extends Modal {
   onClose(): void {
     this.contentEl.empty();
   }
+}
+
+class AudienceModal extends FuzzySuggestModal<string> {
+  private readonly names: string[];
+  private readonly resolve: (v: string | undefined) => void;
+  private chosen: string | undefined;
+
+  constructor(app: App, names: string[], resolve: (v: string | undefined) => void) {
+    super(app);
+    this.names = names;
+    this.resolve = resolve;
+    this.setPlaceholder("Who is it for?");
+  }
+
+  getItems(): string[] {
+    return this.names;
+  }
+
+  getItemText(name: string): string {
+    return name;
+  }
+
+  onChooseItem(name: string): void {
+    this.chosen = name;
+  }
+
+  onClose(): void {
+    super.onClose();
+    // onChooseItem runs after onClose in some Obsidian versions; wait a tick before resolving.
+    window.setTimeout(() => this.resolve(this.chosen), 0);
+  }
+}
+
+/** One audience from `names`, or undefined when dismissed. */
+export function pickAudience(app: App, names: string[]): Promise<string | undefined> {
+  return new Promise((resolve) => new AudienceModal(app, names, resolve).open());
 }
 
 const OUTCOME_PLACEHOLDER = "Outcome (optional) — Enter to save, Esc to cancel";

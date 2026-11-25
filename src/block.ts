@@ -1,9 +1,9 @@
 // Renders an ```agenda block. With one audience: what is pending for it, a box
 // to tick each item off, and the items ticked off in the last 30 days. With
-// `audience: all`: everything pending, grouped by audience or as a table of
+// `with: all`: everything pending, grouped by audience or as a table of
 // items × audiences (`layout: items`).
 import { MarkdownRenderChild, Notice } from "obsidian";
-import { parseBlockSource, resolveAudience } from "./core/block.ts";
+import { ALL, headerText, parseBlockSource, resolveAudience } from "./core/block.ts";
 import {
   ageLabel,
   doneFor,
@@ -58,32 +58,31 @@ export class AgendaBlock extends MarkdownRenderChild {
       el.createDiv({ cls: "agenda-muted", text: "Loading…" });
       return;
     }
-    const audience = resolveAudience(spec, index.audienceAt(this.sourcePath)?.name ?? null);
-    if (typeof audience !== "string") {
-      el.createDiv({ cls: "agenda-error", text: audience.error });
-      return;
-    }
-    if (!spec.all && !index.knownAudiences().includes(audience)) {
-      el.createDiv({ cls: "agenda-error", text: `No note named "${audience}" has type: person or type: meeting.` });
+    const wanted = resolveAudience(spec, index.audienceAt(this.sourcePath)?.name ?? null);
+    const all = wanted.toLowerCase() === ALL;
+    // Names match whatever their case, as links do; the note's own spelling is shown.
+    const audience = all ? ALL : index.knownAudiences().find((n) => n.toLowerCase() === wanted.toLowerCase());
+    if (audience === undefined) {
+      el.createDiv({ cls: "agenda-error", text: `No note named "${wanted}" has type: person or type: meeting.` });
       return;
     }
 
     const records = index.records();
-    if (!spec.all) this.renderAudience(el, records, audience);
+    if (!all) this.renderAudience(el, records, audience);
     else if (spec.layout === "items") this.renderTable(el, records);
     else this.renderGroups(el, records);
-    this.renderDone(el, records, spec.all ? null : audience);
+    this.renderDone(el, records, all ? null : audience);
   }
 
   private renderAudience(el: HTMLElement, records: ItemRecord[], audience: string): void {
     const pending = pendingFor(records, audience);
-    el.createDiv({ cls: "agenda-header", text: `Pending for ${audience} (${pending.length})` });
+    el.createDiv({ cls: "agenda-header", text: headerText(audience, pending.length) });
     if (pending.length === 0) el.createDiv({ cls: "agenda-muted", text: `Nothing pending for ${audience}.` });
     for (const item of pending) this.row(el, item, audience);
   }
 
   private renderGroups(el: HTMLElement, records: ItemRecord[]): void {
-    el.createDiv({ cls: "agenda-header", text: `All pending (${pendingItemCount(records)} items)` });
+    el.createDiv({ cls: "agenda-header", text: headerText(ALL, pendingItemCount(records)) });
     const groups = groupByAudience(records, this.plugin.index.knownAudiences());
     if (groups.length === 0) el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });
     for (const { column, items } of groups) {
@@ -93,7 +92,7 @@ export class AgendaBlock extends MarkdownRenderChild {
   }
 
   private renderTable(el: HTMLElement, records: ItemRecord[]): void {
-    el.createDiv({ cls: "agenda-header", text: `All pending (${pendingItemCount(records)} items)` });
+    el.createDiv({ cls: "agenda-header", text: headerText(ALL, pendingItemCount(records)) });
     const { columns, rows } = itemMatrix(records, this.plugin.index.knownAudiences());
     if (rows.length === 0) {
       el.createDiv({ cls: "agenda-muted", text: "Nothing pending." });

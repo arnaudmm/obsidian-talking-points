@@ -12,24 +12,40 @@ It requires Obsidian 1.13 or later.
 ## Use
 
 1. Add `type: person` to the properties of each person's note, and `type: meeting` to each meeting's note (a daily, a retrospective…). Add `active: false` to hide one from the pickers without deleting it.
-2. Run **Talking Points: New agenda item** (bind it to a hotkey). Type the title, tick the audiences, and press ⌘Enter to save, or ⌘⇧Enter to save and enter the next one.
+2. Run **Talking Points: New agenda item** (bind it to a hotkey). Type the title, and add audiences in **With**: press **+** and search for a person or meeting, and × removes one. Run from a person's or a meeting's note, it starts with that audience. Press ⌘Enter to save, or ⌘⇧Enter to save and enter the next one.
 3. In each person or meeting note, add an empty block once. It lists what is pending for that note:
    ````
    ```agenda
    ```
    ````
-   In any other note, name the audience: `audience: Daily` or `audience: [[Daily]]`.
 4. In the meeting, tick what you've covered. **Show done** lists the last 30 days with their outcomes.
 5. For an overview of everything pending, put this block anywhere (a home or weekly review note):
    ````
    ```agenda
-   audience: all
+   with: all
    layout: items
    ```
    ````
-   `layout: items` is optional: it shows a table of items × audiences, and without it the items are grouped by audience. In the table, `●` is still to tell (click it to tick that audience) and `✓` is already told. Every row shows the item's age.
+   In the table, `●` is still to tell (click it to tick that audience) and `✓` is already told. Every row shows the item's age.
 
-Items refer to their audiences with links (`audiences: ["[[Marc]]"]`, and `- 2026-11-20 · [[Marc]] · outcome` in the `## Log`), so renaming a person or meeting note updates them, as long as Settings → Files and links → Automatically update internal links is on. An empty block follows its note's new name; a block with an `audience:` line keeps the name you typed.
+### Block options
+
+One `key: value` per line, both optional. Quotes around a value and `# comments` are fine. The options work as in Open Threads' `threads` block:
+
+| Option | Values | Default |
+|---|---|---|
+| `with` | `[[Name]]`, `Name` or `all` (`audience:` also works) | the note's own audience in a `type: person` or `type: meeting` note, else `all` |
+| `layout` | `audience` (grouped by audience) or `items` (a table of items × audiences); only used with `all` | `audience` |
+
+For example, what is pending for the daily, from another note:
+
+````
+```agenda
+with: [[Daily]]
+```
+````
+
+Items refer to their audiences with links (`audiences: ["[[Marc]]"]`, and `- 2026-11-20 · [[Marc]] · outcome` in the `## Log`), so renaming a person or meeting note updates them, as long as Settings → Files and links → Automatically update internal links is on. An empty block follows its note's new name; a block with `with:` keeps the name you typed.
 
 ## Commands
 
@@ -37,8 +53,8 @@ Run them from the command palette (⌘P on macOS, Ctrl+P elsewhere). They have n
 
 | Command | What it does |
 |---|---|
-| **Talking Points: New agenda item** | Opens the capture window: a title, optional details, and one checkbox per audience. **Save** (⌘Enter) creates the item note in the item folder and closes the window. **Save & next** (⌘⇧Enter) creates it and clears the window for the next item. At least one audience must be ticked. If no note has `type: person` or `type: meeting` yet, it says so. |
-| **Talking Points: Edit audiences of this agenda item** | Available only when the open note is an agenda item (`type: agenda`). Shows a checkbox per audience, ticked for those still pending. Ticking one adds it to the item's `audiences` and `pending`. Unticking one removes it from `pending` only, so `audiences` keeps the record. Audiences that are on the item but have no note are listed as "(no note)", and those with `active: false` as "(inactive)". |
+| **Talking Points: New agenda item** | Opens the capture window: a title, optional details, and the **With** field (the current note's audience when it is a person or a meeting). **Save** (⌘Enter) creates the item note in the item folder and closes the window. **Save & next** (⌘⇧Enter) creates it and clears the window for the next item, keeping the audience it started with. At least one audience is needed. If no note has `type: person` or `type: meeting` yet, it says so. |
+| **Talking Points: Edit audiences of this agenda item** | Available only when the open note is an agenda item (`type: agenda`). Shows the **With** field with the audiences still pending. Adding one adds it to the item's `audiences` and `pending`. Removing one removes it from `pending` only, so `audiences` keeps the record. Audiences that are on the item but have no note show "(no note)", and those with `active: false` "(inactive)". |
 
 ## Development
 
