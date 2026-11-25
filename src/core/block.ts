@@ -56,5 +56,5 @@ export function resolveAudience(spec: BlockSpec, noteAudience: string | null): s
 }
 
 export function headerText(scope: string, pending: number): string {
-  return `${scope === ALL ? "Everyone" : scope} · ${pending} pending`;
+  return `Talking Points · ${scope === ALL ? "Everyone" : scope} · ${pending} pending`;
 }

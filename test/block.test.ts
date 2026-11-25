@@ -35,7 +35,7 @@ test("the audience is the block's own, else the note it is in, else everyone", (
   assert.equal(resolveAudience({ audience: "all", layout: "items" }, "Marc"), "all");
 });
 
-test("the header names who the block is about, as in Open Threads", () => {
-  assert.equal(headerText("Marc", 3), "Marc · 3 pending");
-  assert.equal(headerText("all", 5), "Everyone · 5 pending");
+test("the header names the plugin and who the block is about, as in Open Threads", () => {
+  assert.equal(headerText("Marc", 3), "Talking Points · Marc · 3 pending");
+  assert.equal(headerText("all", 5), "Talking Points · Everyone · 5 pending");
 });
